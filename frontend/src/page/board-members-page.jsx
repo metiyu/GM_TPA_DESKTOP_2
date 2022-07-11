@@ -3,7 +3,7 @@ import axios from "axios";
 import { addDoc, collection, doc, onSnapshot, query, updateDoc } from "firebase/firestore";
 import { Fragment, useRef, useState } from "react";
 import { useEffect } from "react";
-import { useParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import { UseCurrentUser } from "../config/CurrentUserContext";
 import { db } from "../config/firebaseConfig";
 
@@ -17,7 +17,7 @@ export default function MakeMember() {
     const cancelButtonRef = useRef(null);
     const [isAdmin, setIsAdmin] = useState()
     const [listOfMember, setListOfMember] = useState()
-    const [listOfWorkspace, setListOfWorkspace] = useState()
+    const [listOfBoard, setListOfBoard] = useState()
 
     const userID = user ? user.uid : "Loading"
 
@@ -45,6 +45,14 @@ export default function MakeMember() {
             docs.forEach(doc => {
                 if (doc.id === bID)
                     setListOfMember(doc.data().members);
+            })
+        })
+
+        const q3 = query(collection(db, "users"))
+        onSnapshot(q3, (docs) => {
+            docs.forEach(doc => {
+                if (doc.id === userID)
+                    setListOfBoard(doc.data().myBoards)
             })
         })
 
@@ -92,6 +100,50 @@ export default function MakeMember() {
         }
     }
 
+    function leaveBoardValidation(){
+        if (listOfMember.length == 1) {
+            alert("Choose to Close or Delete Board")
+            return
+        }
+        else{
+            leaveBoard()
+        }
+    }
+
+    const navigate = useNavigate()
+    function leaveBoard() {
+        let arr = []
+        for (let index = 0; index < listOfMember.length; index++) {
+            if(userID !== listOfMember[index].memberId){
+                arr.push(listOfMember[index])
+            }
+        }
+
+        updateDoc(doc(db, "workspaces", wID, "boards", bID), {
+            members: arr
+        }).then(() => {
+            console.log("submitted");
+        }).catch((e) => {
+            console.log(e.message);
+        })
+
+        let arr2 = []
+        for (let index = 0; index < listOfBoard.length; index++) {
+            if(bID !== listOfBoard[index].boardId){
+                arr2.push(listOfBoard[index])
+            }
+        }
+
+        updateDoc(doc(db, "users", userID), {
+            myBoards: arr2
+        }).then(() => {
+            console.log("submitted");
+            navigate('/my-workspace')
+        }).catch((e) => {
+            console.log(e.message);
+        })
+    }
+
     function grantAdmin(id, name) {
         let arr = []
         for (let index = 0; index < listOfMember.length; index++) {
@@ -117,7 +169,7 @@ export default function MakeMember() {
     function revokeAdmin(id, name) {
         let arr = []
         for (let index = 0; index < listOfMember.length; index++) {
-            if(id !== listOfMember[index].memberId){
+            if (id !== listOfMember[index].memberId) {
                 arr.push(listOfMember[index])
             }
         }
@@ -126,7 +178,7 @@ export default function MakeMember() {
             memberId: id,
             memberName: name
         })
-        
+
         updateDoc(doc(db, "workspaces", wID, "boards", bID), {
             members: arr
         }).then(() => {
@@ -136,8 +188,37 @@ export default function MakeMember() {
         })
     }
 
-    function removeMember() {
+    function removeMember(memberID) {
+        let arr = []
+        for (let index = 0; index < listOfMember.length; index++) {
+            if(memberID !== listOfMember[index].memberId){
+                arr.push(listOfMember[index])
+            }
+        }
 
+        updateDoc(doc(db, "workspaces", wID, "boards", bID), {
+            members: arr
+        }).then(() => {
+            console.log("submitted");
+        }).catch((e) => {
+            console.log(e.message);
+        })
+
+        let arr2 = []
+        for (let index = 0; index < listOfBoard.length; index++) {
+            if(bID !== listOfBoard[index].boardId){
+                arr2.push(listOfBoard[index])
+            }
+        }
+
+        updateDoc(doc(db, "users", memberID), {
+            myBoards: arr2
+        }).then(() => {
+            console.log("submitted");
+            navigate('/my-workspace')
+        }).catch((e) => {
+            console.log(e.message);
+        })
     }
 
     return (
@@ -153,6 +234,13 @@ export default function MakeMember() {
                         }}
                     >
                         Invite Member
+                    </button>
+                    <button
+                        type="button"
+                        className="w-full inline-flex rounded-md border border-transparent shadow-sm px-4 py-2 bg-red-600 text-base font-medium text-white hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 sm:ml-3 sm:w-auto sm:text-sm"
+                        onClick={leaveBoardValidation}
+                    >
+                        Leave Workspace
                     </button>
                 </div>
                 <div className="flow-root mt-6">

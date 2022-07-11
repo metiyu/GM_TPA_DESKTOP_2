@@ -95,6 +95,8 @@ export default function MakeKanban() {
             id: docID,
             title: title,
             description: desc,
+            label: "",
+            attachment: [],
             listOfChecklist: [],
             latitude: "",
             longitude: "",

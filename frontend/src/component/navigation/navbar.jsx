@@ -117,8 +117,14 @@ export default function MakeNavbar() {
 
     const [searchString, setSearchString] = useState()
 
+    function handleShortcut(e){
+        if(e.key === "W")
+            setOpen(true)
+    }
+
+
     return (
-        <div>
+        <div tabIndex="0" onKeyDown={(e) => handleShortcut(e)}>
             <Disclosure as="nav" className="bg-gray-900">
                 {({ open }) => (
                     <>

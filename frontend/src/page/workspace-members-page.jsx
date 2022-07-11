@@ -192,8 +192,37 @@ export default function MakeMember() {
         })
     }
 
-    function removeMember(id) {
-        // updateDoc(doc(db, "workspaces"))
+    function removeMember(memberID) {
+        let arr = []
+        for (let index = 0; index < listOfMember.length; index++) {
+            if(memberID !== listOfMember[index].memberId){
+                arr.push(listOfMember[index])
+            }
+        }
+
+        updateDoc(doc(db, "workspaces", wID), {
+            members: arr
+        }).then(() => {
+            console.log("submitted");
+        }).catch((e) => {
+            console.log(e.message);
+        })
+
+        let arr2 = []
+        for (let index = 0; index < listOfWorkspace.length; index++) {
+            if(wID !== listOfWorkspace[index].workspaceId){
+                arr2.push(listOfWorkspace[index])
+            }
+        }
+
+        updateDoc(doc(db, "users", memberID), {
+            myWorkspaces: arr2
+        }).then(() => {
+            console.log("submitted");
+            navigate('/my-workspace')
+        }).catch((e) => {
+            console.log(e.message);
+        })
     }
 
     return (

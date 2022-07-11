@@ -1,5 +1,5 @@
 import { Dialog, Transition } from "@headlessui/react"
-import { BookmarkIcon, CalendarIcon, CheckCircleIcon, ClockIcon, InboxIcon, LinkIcon, LocationMarkerIcon, UsersIcon, CursorClickIcon, MinusCircleIcon, PencilAltIcon, PaperClipIcon } from "@heroicons/react/solid"
+import { BookmarkIcon, CalendarIcon, CheckCircleIcon, ClockIcon, InboxIcon, LinkIcon, LocationMarkerIcon, UsersIcon, CursorClickIcon, MinusCircleIcon, PencilAltIcon, PaperClipIcon, PlusIcon } from "@heroicons/react/solid"
 import { addDoc, arrayUnion, collection, doc, onSnapshot, query, setDoc, updateDoc, where } from "firebase/firestore"
 import { Fragment, useRef, useState } from "react"
 import { Draggable } from "react-beautiful-dnd"
@@ -9,6 +9,7 @@ import { db } from "../config/firebaseConfig"
 import CircularProgressBar from "./progressBar"
 import DatePicker from 'sassy-datepicker';
 import moment from "moment"
+import { BlockPicker } from 'react-color'
 
 export default function Task(props) {
 
@@ -18,15 +19,20 @@ export default function Task(props) {
     const [openMap, setOpenMap] = useState(false)
     const [openDate, setOpenDate] = useState(false)
     const [openLink, setOpenLink] = useState(false)
+    const [openChecklist, setOpenChecklist] = useState(false)
 
     const navigation = [
         { name: 'Labels', href: '#', icon: BookmarkIcon, current: false, isClick: () => setOpenLabel(true) },
-        { name: 'Checklist', href: '#', icon: CheckCircleIcon, current: false, isClick: (e) => makeChecklist(e) },
+        { name: 'Checklist', href: '#', icon: CheckCircleIcon, current: false, isClick: () => setOpenChecklist(true) },
         { name: 'Dates', href: '#', icon: ClockIcon, current: false, isClick: () => setOpenDate(true) },
         { name: 'Attachment', href: '#', icon: PaperClipIcon, current: false, isClick: (e) => makeAttachment(e) },
         { name: 'Location', href: '#', icon: LocationMarkerIcon, current: false, isClick: () => setOpenMap(true) },
-        { name: 'Share', href: '#', icon: LinkIcon, current: false, isClick: (e) => {setOpenLink(true) 
-                                                                                    makeCardLink(e)} },
+        {
+            name: 'Share', href: '#', icon: LinkIcon, current: false, isClick: (e) => {
+                setOpenLink(true)
+                makeCardLink(e)
+            }
+        },
     ]
 
     var checkListNew = [
@@ -48,31 +54,39 @@ export default function Task(props) {
     const [title, setTitle] = useState(props.task.title)
     const [desc, setDesc] = useState()
     const [checked, setChecked] = useState([]);
+    const [label, setLabel] = useState()
+    const [isThereLabel, setIsThereLabel] = useState(false)
     const [isThereChecklist, setIsThereChecklist] = useState(false)
     const [isThereAttach, setIsThereAttach] = useState(false)
     const [attachList, setAttachList] = useState()
     const [isThereDuedate, setIsThereDuedate] = useState(false)
     const [isThereLink, setIsThereLink] = useState(false)
 
+    const [currCard, setCurrCard] = useState()
     function getCardDetail(cardID) {
+        setCurrCard(cardID)
         console.log(cardID);
         const q = query(collection(db, "cards"), where("id", "==", cardID))
         onSnapshot(q, (doc) => {
-            console.log(doc.docs[0].data());
             const { id, title, description } = doc.docs[0].data()
             setTitle(title)
             setDesc(description)
-            setIsThereChecklist(doc.docs[0].data().listOfChecklist.length)
             setIsThereAttach(doc.docs[0].data().attachment.length)
             setAttachList(doc.docs[0].data().attachment)
             setLatitude(doc.docs[0].data().latitude)
             setLongitude(doc.docs[0].data().longitude)
+            setBlockPickerColor(doc.docs[0].data().labelColor)
+            if (doc.docs[0].data().label !== "") {
+                setIsThereLabel(true)
+                setLabel(doc.docs[0].data().label)
+            }
             if (doc.docs[0].data().latitude !== "")
                 setIsThereLocation(true)
             if (!(doc.docs[0].data().duedate === "none" || doc.docs[0].data().duedate === "")) {
                 setDuedate(new Date(doc.docs[0].data().duedate).toDateString())
                 setIsThereDuedate(true)
             }
+            
         })
     }
 
@@ -84,7 +98,10 @@ export default function Task(props) {
             docs.forEach(doc => {
                 arr.push({ ...doc.data(), id: doc.id })
             })
+            console.log(arr);
             setListOfChecklist(arr);
+            setIsThereChecklist(arr.length)
+            console.log(isThereChecklist);
         })
     }
 
@@ -92,38 +109,49 @@ export default function Task(props) {
     const { wID, bID } = useParams()
 
     //label
+    const [blockPickerColor, setBlockPickerColor] = useState("#37d67a");
     function addLabelToCard(cardID, e) {
         e.preventDefault()
-        console.log(e.target.label.value);
         updateDoc(doc(db, "cards", cardID), {
-            label: e.target.label.value
+            label: e.target.label.value,
+            labelColor: blockPickerColor
         }).then(() => {
             console.log("success");
         }).catch((e) => {
             console.log(e.message);
         })
+
+        setIsThereLabel(true)
     }
 
     //checklist
     const [checklistName, setChecklistName] = useState()
     const [checklistItem, setChecklistItem] = useState()
+    const [tempChecklistName, setTempChecklistName] = useState()
+    const [items, setItems] = useState([])
     function makeChecklist(cardID) {
+        let arr = []
+        items.forEach( item => {
+            arr.push({ name: item, isChecked: false })
+        })
+        console.log(arr);
         addDoc(collection(db, "cards", cardID, "checklist"), {
-            checklistName: "",
-            listOfChecklist: [{
-                name: "",
-                isChecked: false
-            }]
+            checklistName: tempChecklistName,
+            listOfChecklist: arr
         }).then((e) => {
-            updateDoc(doc(db, "cards", cardID), {
-                listOfChecklist: arrayUnion(
-                    e.id
-                )
-            })
             console.log("success");
+            let arr2 = []
+            arr.forEach(item => {
+                arr2.push({ name: item.name, isChecked: false, docID: e.id })
+            })
+            console.log(arr2);
+            updateDoc(doc(db, "cards", cardID, "checklist", e.id), {
+                listOfChecklist: arr2
+            })
         }).catch((e) => {
             console.log(e.message);
         })
+        setOpenChecklist(false)
     }
 
     const [howMuchCheck, setHowMuchCheck] = useState()
@@ -136,8 +164,30 @@ export default function Task(props) {
         return (sumCheck);
     }
 
-    function handleCheck(e) {
-        console.log(e);
+    function handleCheck(item, id) {
+        let arr = []
+        console.log(listOfChecklist[0].listOfChecklist);
+        for (let index = 0; index < listOfChecklist[0].listOfChecklist.length; index++) {
+            if(item.name !== listOfChecklist[0].listOfChecklist[index].name){
+                arr.push(listOfChecklist[0].listOfChecklist[index])
+            }
+        }
+        arr.push({ docID: item.docID, name: item.name, isChecked: !item.isChecked })
+        console.log(id);
+        updateDoc(doc(db, "cards", currCard, "checklist", item.docID), {
+            listOfChecklist: arr
+        }).then(() => {
+            console.log("success");
+        })
+    }
+
+    const [tempItem, setTempItem] = useState()
+    function addItem() {
+        let tempList = []
+        tempList = items
+        tempList.push(tempItem)
+        setItems(tempList)
+        setTempItem('')
     }
 
     //attachment
@@ -289,7 +339,7 @@ export default function Task(props) {
 
     return (
         <div>
-            <a  onClick={() => {
+            <a onClick={() => {
                 setOpen(true)
                 getCardDetail(props.task.id)
                 getCardChecklist(props.task.id)
@@ -364,6 +414,16 @@ export default function Task(props) {
                                                 Card Description
                                             </Dialog.Title>
                                             <textarea className="text-lg " name="title" id="title" rows="1" value={desc} onChange={(e) => setDesc(e.target.value)}></textarea>
+                                            {isThereLabel ? (
+                                                <div>
+                                                    <Dialog.Title as="h3" className="text-lg leading-6 font-medium text-gray-900">
+                                                        Card Label
+                                                    </Dialog.Title>
+                                                    <div style={{
+                                                        background: `${blockPickerColor}`
+                                                    }}>{label}</div>
+                                                </div>
+                                            ) : ""}
                                             {isThereDuedate ? (
                                                 <div className="flex pb-2">
                                                     <div>
@@ -414,11 +474,11 @@ export default function Task(props) {
                                                                 <div className="checkList">
                                                                     <textarea className="title" rows="1" defaultValue={checklist.checklistName} value={checklistName} onChange={(e) => setChecklistName(e.target.value)}></textarea>
                                                                     <div className="list-container">
-                                                                        {checklist.listOfChecklist.map((item) => (
+                                                                        {checklist.listOfChecklist.map((item, index) => (
                                                                             <div key={item.name}>
                                                                                 {item.isChecked ? (
                                                                                     <div>
-                                                                                        <input defaultChecked={true} type="checkbox" onChange={() => handleCheck(item)} />
+                                                                                        <input defaultChecked={true} type="checkbox" onChange={() => handleCheck(item, props.task.id)} />
                                                                                         <span className="line-through" >{item.name}</span>
                                                                                     </div>
                                                                                 ) : (
@@ -541,6 +601,25 @@ export default function Task(props) {
                                                     <option value="Label 2">Label 2</option>
                                                     <option value="Label 3">Label 3</option>
                                                 </select>
+                                                <div className="blockpicker">
+                                                    <h6>Color Picker</h6>
+                                                    {/* Div to display the color  */}
+                                                    <div
+                                                        style={{
+                                                            backgroundColor: `${blockPickerColor}`,
+                                                            width: 100,
+                                                            height: 50,
+                                                            border: "2px solid white",
+                                                        }}
+                                                    ></div>
+                                                    {/* Block Picker from react-color and handling color on onChange event */}
+                                                    <BlockPicker
+                                                        color={blockPickerColor}
+                                                        onChange={(color) => {
+                                                            setBlockPickerColor(color.hex);
+                                                        }}
+                                                    />
+                                                </div>
                                             </div>
                                             <button className="bg-transparent border-0 text-black absolute top-3 right-3"
                                                 onClick={() => setOpenLabel(false)}>
@@ -741,6 +820,79 @@ export default function Task(props) {
                                     </button>
                                     <div className="pb-3">
                                         <button className="bg-gray-700 hover:bg-gray-800 text-white px-3 py-2 rounded-md text-sm font-medium" onClick={() => addDuedate(props.task.id)}>
+                                            Save
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </Transition.Child>
+                    </div>
+                </Dialog>
+            </Transition.Root>
+
+            {/* Checklist */}
+            <Transition.Root show={openChecklist} as={Fragment}>
+                <Dialog
+                    as="div"
+                    className="fixed z-10 top-0 right-64 overflow-y-auto"
+                    onClose={setOpenChecklist}
+                >
+                    <div
+                        className="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0"
+                    >
+                        <Transition.Child
+                            as={Fragment}
+                            enter="ease-out duration-300"
+                            leave="ease-in duration-200"
+                        >
+                            <Dialog.Overlay className="fixed inset-0" />
+                        </Transition.Child>
+
+                        {/* This element is to trick the browser into centering the modal contents. */}
+                        <span className="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">
+                            &#8203;
+                        </span>
+                        <Transition.Child
+                            as={Fragment}
+                            enter="ease-out duration-300"
+                            enterFrom="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
+                            enterTo="opacity-100 translate-y-0 sm:scale-100"
+                            leave="ease-in duration-200"
+                            leaveFrom="opacity-100 translate-y-0 sm:scale-100"
+                            leaveTo="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
+                        >
+                            <div
+                                className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full"
+                            >
+                                <div className="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+                                    <div className="sm:flex sm:items-start">
+                                        <div className="inset-3 p-5">
+                                            <div>
+                                                <label htmlFor="name" className="pr-3">
+                                                    Card Checklist Name
+                                                </label>
+                                                <input id="name" name="name" type="text" value={tempChecklistName} onChange={(e) => setTempChecklistName(e.target.value)} />
+                                            </div>
+                                            <label htmlFor="items" className="pr-3">
+                                                Card Checklist Item
+                                            </label>
+                                            {items.map((item) => (
+                                                <ul className="list-disc">
+                                                    <li>{item}</li>
+                                                </ul>
+                                            ))}
+                                            <div>
+                                                <input id="item" name="item" type="text" value={tempItem} onChange={(e) => setTempItem(e.target.value)} />
+                                            </div>
+                                            <button className="bg-gray-700 hover:bg-gray-800 text-white px-3 py-2 rounded-md text-sm font-medium" onClick={addItem}>add item</button>
+                                        </div>
+                                    </div>
+                                    <button className="bg-transparent border-0 text-black absolute top-3 right-3"
+                                        onClick={() => setOpenChecklist(false)}>
+                                        ✖
+                                    </button>
+                                    <div className="pb-3">
+                                        <button className="bg-gray-700 hover:bg-gray-800 text-white px-3 py-2 rounded-md text-sm font-medium" onClick={() => makeChecklist(props.task.id)}>
                                             Save
                                         </button>
                                     </div>

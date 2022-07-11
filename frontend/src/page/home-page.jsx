@@ -34,7 +34,6 @@ export default function MakeHome() {
     }, [userID])
 
     
-
     return (
         <div>
             <div>

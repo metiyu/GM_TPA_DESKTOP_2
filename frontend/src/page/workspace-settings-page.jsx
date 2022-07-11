@@ -53,12 +53,21 @@ export default function MakeWorkspaceSettings() {
                 }
             });
         })
+
+        // const q2 = query(collection(db, "workspaces", wID, "boards"))
+        // onSnapshot(q, (docs) => {
+        //     docs.forEach(doc => {
+                
+        //     })
+        // })
     }, [wID])
 
     const deleteWorkspace = async () => {
         const del = doc(db, "workspaces", wID);
         await deleteDoc(del)
         console.log("done")
+
+        
 
         updateDoc(doc(db, "users", userID), {
             myWorkspaces: arrayRemove({

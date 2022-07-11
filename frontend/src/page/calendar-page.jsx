@@ -17,7 +17,10 @@ export function MyCalendar(){
             let arr = []
             docs.forEach(doc => {
                 if(!(doc.data().duedate === "" || doc.data().duedate === "none"))
-                    arr.push({ title: doc.data().title, start: doc.data().startdate.toDate(), end: doc.data().duedate, id: doc.id })
+                    arr.push({ title: doc.data().title, 
+                                start: doc.data().startdate.toDate(), 
+                                end: doc.data().duedate, 
+                                id: doc.id })
             })
             setCards(arr)
         })
